@@ -626,8 +626,8 @@
 
     // ─── Human-readable labels (NL) ───────────────────────────────────
     const REGISTER_LABELS = {
-        room_temp:       'Ruimtetemperatuur',
-        evap_temp:       'Verdampertemp.',
+        water_in:       'Water in',
+        water_uit:       'Verdampertemp.',
         setpoint:        'Setpoint',
         defrost_temp:    'Ontdooitemp.',
         superheat:       'Oververhitting',
@@ -642,7 +642,7 @@
     };
 
     // Which category each register belongs to
-    const TEMP_REGS    = ['room_temp','evap_temp','setpoint','defrost_temp','superheat','suction_press','discharge_press'];
+    const TEMP_REGS    = ['water_in','water_uit','setpoint','defrost_temp','superheat','suction_press','discharge_press'];
     const STATUS_REGS  = ['comp_status','fan_status','defrost_active','alarm_code'];
     const COUNTER_REGS = ['comp_hours','energy_kwh'];
 
