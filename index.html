@@ -4,1054 +4,727 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#0a0e17">
-<meta name="description" content="KoelDiag - Modbus diagnostiek via Bluetooth">
 <title>KoelDiag — Koelmachine Diagnostiek</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* ─── CSS Custom Properties ─────────────────────────────────────── */
-  :root {
-    --bg-primary: #0a0e17;
-    --bg-card: #111827;
-    --bg-card-elevated: #1a2235;
-    --bg-input: #0d1220;
-    --border-subtle: #1e2a3f;
-    --border-active: #3b82f6;
+:root {
+  --bg-primary: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-elevated: #1a2235;
+  --bg-input: #0d1220;
+  --border-subtle: #1e2a3f;
+  --border-active: #3b82f6;
+  --text-primary: #e8edf5;
+  --text-secondary: #8899b2;
+  --text-muted: #4a5c75;
+  --text-value: #f0f4fa;
+  --accent-blue: #3b82f6;
+  --accent-blue-dim: #1e3a6e;
+  --accent-green: #10b981;
+  --accent-green-dim: #064e3b;
+  --accent-red: #ef4444;
+  --accent-red-dim: #7f1d1d;
+  --accent-amber: #f59e0b;
+  --accent-amber-dim: #78350f;
+  --accent-cyan: #06b6d4;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent-blue); outline-offset: 2px; }
+.sr-only { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0; }
 
-    --text-primary: #e8edf5;
-    --text-secondary: #8899b2;
-    --text-muted: #4a5c75;
-    --text-value: #f0f4fa;
+.app { max-width: 520px; margin: 0 auto; padding: 12px; padding-bottom: env(safe-area-inset-bottom, 16px); }
 
-    --accent-blue: #3b82f6;
-    --accent-blue-dim: #1e3a6e;
-    --accent-green: #10b981;
-    --accent-green-dim: #064e3b;
-    --accent-red: #ef4444;
-    --accent-red-dim: #7f1d1d;
-    --accent-amber: #f59e0b;
-    --accent-amber-dim: #78350f;
-    --accent-cyan: #06b6d4;
+/* ─── Header ─── */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 0 14px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 14px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo {
+  width: 34px; height: 34px; border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+  display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+}
+.brand-title { font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; letter-spacing: -0.02em; }
+.brand-sub { font-size: 0.65rem; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; }
 
-    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
-    --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+/* ─── Status Badge ─── */
+.badge {
+  display: flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 20px;
+  font-size: 0.68rem; font-weight: 600; font-family: var(--font-mono); text-transform: uppercase;
+  letter-spacing: 0.05em; border: 1px solid;
+}
+.badge[data-s="off"] { color: var(--text-muted); border-color: var(--border-subtle); background: var(--bg-card); }
+.badge[data-s="on"] { color: var(--accent-green); border-color: var(--accent-green-dim); background: rgba(16,185,129,0.08); }
+.badge[data-s="wait"] { color: var(--accent-amber); border-color: var(--accent-amber-dim); background: rgba(245,158,11,0.08); animation: pulse 1.5s infinite; }
+.badge[data-s="err"] { color: var(--accent-red); border-color: var(--accent-red-dim); background: rgba(239,68,68,0.08); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 14px;
+/* ─── Tabs ─── */
+.tabs {
+  display: flex; gap: 4px; margin-bottom: 16px;
+  background: var(--bg-card); border-radius: var(--radius-md); padding: 4px; border: 1px solid var(--border-subtle);
+}
+.tab {
+  flex: 1; padding: 10px; border: none; border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-muted);
+  text-align: center;
+}
+.tab[aria-selected="true"] { background: var(--accent-blue-dim); color: var(--accent-blue); }
+.tab:hover:not([aria-selected="true"]) { color: var(--text-secondary); }
+.panel { display: none; }
+.panel[data-active] { display: block; }
 
-    --shadow-card: 0 2px 12px rgba(0,0,0,0.4);
-    --shadow-glow-blue: 0 0 20px rgba(59,130,246,0.15);
-    --shadow-glow-green: 0 0 20px rgba(16,185,129,0.15);
-    --shadow-glow-red: 0 0 20px rgba(239,68,68,0.2);
-  }
+/* ─── Buttons ─── */
+.btn {
+  padding: 10px 16px; border: 1px solid var(--accent-blue-dim); border-radius: var(--radius-sm);
+  background: rgba(59,130,246,0.12); color: var(--accent-blue);
+  font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn:hover:not(:disabled) { background: rgba(59,130,246,0.2); border-color: var(--accent-blue); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-full { width: 100%; justify-content: center; }
+.btn-green { border-color: var(--accent-green-dim); background: rgba(16,185,129,0.12); color: var(--accent-green); }
+.btn-green:hover:not(:disabled) { border-color: var(--accent-green); background: rgba(16,185,129,0.2); }
+.btn-red { border-color: var(--accent-red-dim); background: rgba(239,68,68,0.12); color: var(--accent-red); }
+.btn-red:hover:not(:disabled) { border-color: var(--accent-red); background: rgba(239,68,68,0.2); }
+.btn-sm { padding: 6px 10px; font-size: 0.7rem; }
 
-  /* ─── Reset & Base ──────────────────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ─── Cards / Inputs ─── */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 8px;
+}
+.section-hdr {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 10px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border-subtle);
+}
+.section-title {
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-secondary);
+}
+input[type="text"], input[type="number"], select {
+  background: var(--bg-input); color: var(--text-primary);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-sm);
+  padding: 8px 10px; font-family: var(--font-mono); font-size: 0.8rem; width: 100%;
+}
+input:focus, select:focus { border-color: var(--accent-blue); outline: none; }
+label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; margin-bottom: 4px; display: block; }
+.form-row { display: grid; gap: 8px; margin-bottom: 10px; }
+.form-row-2 { grid-template-columns: 1fr 1fr; }
+.form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
 
-  html {
-    font-size: 16px;
-    -webkit-text-size-adjust: 100%;
-  }
+/* ─── Profile List ─── */
+.profile-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); margin-bottom: 6px; cursor: pointer; transition: all 0.2s;
+}
+.profile-item:hover { border-color: var(--accent-blue-dim); }
+.profile-item[data-active="true"] { border-color: var(--accent-green-dim); background: rgba(16,185,129,0.05); }
+.profile-name { font-weight: 600; font-size: 0.85rem; }
+.profile-meta { font-family: var(--font-mono); font-size: 0.65rem; color: var(--text-muted); }
+.profile-actions { display: flex; gap: 6px; }
 
-  body {
-    font-family: var(--font-sans);
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    min-height: 100dvh;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-  }
+/* ─── Register Table ─── */
+.reg-row {
+  display: grid; grid-template-columns: 50px 1fr 50px 55px 40px 40px 30px;
+  gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+}
+.reg-row.hdr { font-weight: 600; color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.65rem; border-bottom: 2px solid var(--border-subtle); }
+.reg-row input { padding: 5px 6px; font-size: 0.72rem; }
+.reg-row select { padding: 4px 2px; font-size: 0.7rem; }
+.cb { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent-blue); }
+.del-btn {
+  width: 24px; height: 24px; border: none; border-radius: 4px; cursor: pointer;
+  background: rgba(239,68,68,0.15); color: var(--accent-red); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.del-btn:hover { background: rgba(239,68,68,0.3); }
 
-  /* ─── Accessibility: Focus Visible ──────────────────────────────── */
-  :focus-visible {
-    outline: 2px solid var(--accent-blue);
-    outline-offset: 2px;
-  }
+/* ─── Dashboard Register Cards ─── */
+.reg-card {
+  background: var(--bg-card); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.reg-card[data-fresh="true"] { border-color: var(--accent-blue-dim); box-shadow: 0 0 15px rgba(59,130,246,0.1); }
+.reg-card[data-alarm="true"] { border-color: var(--accent-red-dim); box-shadow: 0 0 15px rgba(239,68,68,0.15); }
+.reg-name { font-size: 0.78rem; font-weight: 600; }
+.reg-addr { font-family: var(--font-mono); font-size: 0.62rem; color: var(--text-muted); }
+.reg-val {
+  font-family: var(--font-mono); font-size: 1.05rem; font-weight: 700; color: var(--text-value);
+  text-align: right; white-space: nowrap;
+}
+.reg-unit { font-size: 0.68rem; font-weight: 500; color: var(--text-secondary); margin-left: 3px; }
+.reg-val[data-s="null"] { color: var(--text-muted); font-style: italic; font-size: 0.78rem; }
+.reg-val[data-s="on"] { color: var(--accent-green); }
+.reg-val[data-s="off"] { color: var(--text-muted); }
+.reg-val[data-s="alarm"] { color: var(--accent-red); }
 
-  /* Skip to content link for screen readers */
-  .skip-link {
-    position: absolute;
-    top: -100%;
-    left: 0;
-    background: var(--accent-blue);
-    color: white;
-    padding: 8px 16px;
-    z-index: 1000;
-    font-weight: 600;
-  }
-  .skip-link:focus { top: 0; }
+/* ─── Stats ─── */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+.stat { background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 8px; text-align: center; }
+.stat-lbl { font-size: 0.6rem; color: var(--text-muted); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; }
+.stat-val { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--text-value); }
+.stat-val.green { color: var(--accent-green); }
+.stat-val.red { color: var(--accent-red); }
 
-  /* ─── Screen Reader Only ────────────────────────────────────────── */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0,0,0,0);
-    white-space: nowrap;
-    border: 0;
-  }
+/* ─── Log ─── */
+.log {
+  background: var(--bg-input); border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm); padding: 8px; max-height: 150px; overflow-y: auto;
+  font-family: var(--font-mono); font-size: 0.65rem; line-height: 1.6; color: var(--text-secondary);
+}
+.log-entry { display: flex; gap: 6px; }
+.log-t { color: var(--text-muted); flex-shrink: 0; }
+.log-m[data-t="error"] { color: var(--accent-red); }
+.log-m[data-t="success"] { color: var(--accent-green); }
+.log-m[data-t="info"] { color: var(--accent-blue); }
+.log-m[data-t="warn"] { color: var(--accent-amber); }
 
-  /* ─── Layout ────────────────────────────────────────────────────── */
-  .app-container {
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 16px;
-    padding-bottom: env(safe-area-inset-bottom, 16px);
-  }
+.empty { text-align: center; padding: 30px 20px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }
+.compat-warn { background: rgba(239,68,68,0.1); border: 1px solid var(--accent-red-dim); border-radius: var(--radius-md); padding: 14px; margin-bottom: 14px; text-align: center; display: none; }
+.compat-warn b { color: var(--accent-red); }
+.compat-warn p { font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px; }
 
-  /* ─── Header ────────────────────────────────────────────────────── */
-  .header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 0 20px;
-    border-bottom: 1px solid var(--border-subtle);
-    margin-bottom: 20px;
-  }
-
-  .header-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .header-logo {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-sm);
-    background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .header-title {
-    font-family: var(--font-mono);
-    font-size: 1.125rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: var(--text-primary);
-  }
-
-  .header-subtitle {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-  }
-
-  /* ─── Connection Status Badge ───────────────────────────────────── */
-  .status-badge {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    border-radius: 20px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    border: 1px solid;
-  }
-
-  .status-badge[data-status="disconnected"] {
-    color: var(--text-muted);
-    border-color: var(--border-subtle);
-    background: var(--bg-card);
-  }
-  .status-badge[data-status="connecting"] {
-    color: var(--accent-amber);
-    border-color: var(--accent-amber-dim);
-    background: rgba(245,158,11,0.08);
-    animation: pulse-badge 1.5s ease-in-out infinite;
-  }
-  .status-badge[data-status="connected"] {
-    color: var(--accent-green);
-    border-color: var(--accent-green-dim);
-    background: rgba(16,185,129,0.08);
-  }
-  .status-badge[data-status="error"] {
-    color: var(--accent-red);
-    border-color: var(--accent-red-dim);
-    background: rgba(239,68,68,0.08);
-  }
-
-  .status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: currentColor;
-    flex-shrink: 0;
-  }
-  .status-badge[data-status="connected"] .status-dot {
-    animation: pulse-dot 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
-  @keyframes pulse-badge {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-  }
-
-  /* ─── Connect Button ────────────────────────────────────────────── */
-  .connect-section {
-    margin-bottom: 20px;
-  }
-
-  .btn-connect {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid var(--accent-blue-dim);
-    border-radius: var(--radius-md);
-    background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(6,182,212,0.08));
-    color: var(--accent-blue);
-    font-family: var(--font-mono);
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    letter-spacing: 0.02em;
-  }
-
-  .btn-connect:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(6,182,212,0.15));
-    box-shadow: var(--shadow-glow-blue);
-    border-color: var(--accent-blue);
-  }
-
-  .btn-connect:active:not(:disabled) {
-    transform: scale(0.98);
-  }
-
-  .btn-connect:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-  }
-
-  .btn-connect[data-connected="true"] {
-    border-color: var(--accent-red-dim);
-    background: linear-gradient(135deg, rgba(239,68,68,0.12), rgba(239,68,68,0.06));
-    color: var(--accent-red);
-  }
-
-  .btn-connect[data-connected="true"]:hover:not(:disabled) {
-    border-color: var(--accent-red);
-    box-shadow: var(--shadow-glow-red);
-  }
-
-  .btn-icon {
-    font-size: 1.1em;
-  }
-
-  /* ─── Stats Bar ─────────────────────────────────────────────────── */
-  .stats-bar {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-
-  .stat-item {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 10px;
-    text-align: center;
-  }
-
-  .stat-label {
-    font-size: 0.65rem;
-    color: var(--text-muted);
-    font-family: var(--font-mono);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-bottom: 4px;
-  }
-
-  .stat-value {
-    font-family: var(--font-mono);
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-value);
-  }
-
-  .stat-value[data-type="success"] { color: var(--accent-green); }
-  .stat-value[data-type="error"] { color: var(--accent-red); }
-
-  /* ─── Section Headers ───────────────────────────────────────────── */
-  .section-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--border-subtle);
-  }
-
-  .section-icon {
-    font-size: 0.9rem;
-  }
-
-  .section-title {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--text-secondary);
-  }
-
-  /* ─── Register Cards ────────────────────────────────────────────── */
-  .register-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 24px;
-  }
-
-  .register-card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .register-card[data-fresh="true"] {
-    border-color: var(--accent-blue-dim);
-    box-shadow: var(--shadow-glow-blue);
-  }
-
-  .register-card[data-alarm="true"] {
-    border-color: var(--accent-red-dim);
-    box-shadow: var(--shadow-glow-red);
-    animation: alarm-pulse 1.5s ease-in-out infinite;
-  }
-
-  @keyframes alarm-pulse {
-    0%, 100% { border-color: var(--accent-red-dim); }
-    50% { border-color: var(--accent-red); }
-  }
-
-  .register-label {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .register-name {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .register-addr {
-    font-family: var(--font-mono);
-    font-size: 0.65rem;
-    color: var(--text-muted);
-  }
-
-  .register-value {
-    font-family: var(--font-mono);
-    font-size: 1.1rem;
-    font-weight: 700;
-    color: var(--text-value);
-    text-align: right;
-    white-space: nowrap;
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-  }
-
-  .register-unit {
-    font-size: 0.7rem;
-    font-weight: 500;
-    color: var(--text-secondary);
-  }
-
-  .register-value[data-state="null"] {
-    color: var(--text-muted);
-    font-style: italic;
-    font-size: 0.8rem;
-  }
-
-  .register-value[data-state="on"] { color: var(--accent-green); }
-  .register-value[data-state="off"] { color: var(--text-muted); }
-  .register-value[data-state="alarm"] { color: var(--accent-red); }
-
-  /* ─── Log / Event Stream ────────────────────────────────────────── */
-  .log-section { margin-bottom: 24px; }
-
-  .log-container {
-    background: var(--bg-input);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: 10px;
-    max-height: 180px;
-    overflow-y: auto;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    line-height: 1.6;
-    color: var(--text-secondary);
-    scroll-behavior: smooth;
-  }
-
-  .log-entry {
-    display: flex;
-    gap: 8px;
-  }
-
-  .log-time {
-    color: var(--text-muted);
-    flex-shrink: 0;
-  }
-
-  .log-msg { word-break: break-word; }
-  .log-msg[data-type="error"] { color: var(--accent-red); }
-  .log-msg[data-type="success"] { color: var(--accent-green); }
-  .log-msg[data-type="info"] { color: var(--accent-blue); }
-  .log-msg[data-type="warn"] { color: var(--accent-amber); }
-
-  /* ─── Empty State ───────────────────────────────────────────────── */
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-muted);
-  }
-
-  .empty-state-icon {
-    font-size: 2.5rem;
-    margin-bottom: 12px;
-    opacity: 0.5;
-  }
-
-  .empty-state-text {
-    font-size: 0.85rem;
-    line-height: 1.5;
-  }
-
-  /* ─── Browser Support Warning ───────────────────────────────────── */
-  .compat-warning {
-    background: rgba(239,68,68,0.1);
-    border: 1px solid var(--accent-red-dim);
-    border-radius: var(--radius-md);
-    padding: 16px;
-    margin-bottom: 20px;
-    text-align: center;
-  }
-
-  .compat-warning-title {
-    font-weight: 700;
-    color: var(--accent-red);
-    margin-bottom: 6px;
-    font-size: 0.9rem;
-  }
-
-  .compat-warning-text {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-    line-height: 1.5;
-  }
-
-  /* ─── Animations ────────────────────────────────────────────────── */
-  @keyframes fade-in {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .animate-in {
-    animation: fade-in 0.3s ease-out forwards;
-  }
-
-  /* ─── Reduced Motion ────────────────────────────────────────────── */
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 </style>
 </head>
 <body>
+<div class="app">
 
-<a href="#main" class="skip-link">Naar inhoud</a>
-
-<div class="app-container" id="main" role="main">
-
-  <!-- Header -->
-  <header class="header" role="banner">
-    <div class="header-brand">
-      <div class="header-logo" aria-hidden="true">❄</div>
-      <div>
-        <div class="header-title">KoelDiag</div>
-        <div class="header-subtitle">Modbus → BLE Bridge</div>
-      </div>
-    </div>
-    <div class="status-badge" data-status="disconnected" id="statusBadge"
-         role="status" aria-live="polite" aria-label="Verbindingsstatus">
-      <span class="status-dot" aria-hidden="true"></span>
-      <span id="statusText">Geen verbinding</span>
-    </div>
-  </header>
-
-  <!-- Browser compatibility check -->
-  <div class="compat-warning" id="compatWarning" role="alert" style="display:none;">
-    <div class="compat-warning-title">⚠ Web Bluetooth niet beschikbaar</div>
-    <div class="compat-warning-text">
-      Gebruik Chrome of Edge op Android, of Bluefy op iOS.
-      Web Bluetooth werkt niet in Safari, Firefox of in-app browsers.
-    </div>
+<!-- Header -->
+<header class="header">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">&#10052;</div>
+    <div><div class="brand-title">KoelDiag</div><div class="brand-sub">Modbus Diagnostiek</div></div>
   </div>
-
-  <!-- Connect button -->
-  <section class="connect-section" aria-label="Verbinding">
-    <button class="btn-connect" id="btnConnect" data-connected="false"
-            aria-describedby="connectHelp">
-      <span class="btn-icon" aria-hidden="true">⚡</span>
-      <span id="btnConnectText">Verbinden met ESP32</span>
-    </button>
-    <span id="connectHelp" class="sr-only">
-      Maakt Bluetooth-verbinding met het KoelDiag apparaat om Modbus-registers te lezen
-    </span>
-  </section>
-
-  <!-- Stats bar -->
-  <div class="stats-bar" id="statsBar" role="region" aria-label="Communicatie statistieken">
-    <div class="stat-item">
-      <div class="stat-label">Uptime</div>
-      <div class="stat-value" id="statUptime">--</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Reads OK</div>
-      <div class="stat-value" data-type="success" id="statOk">0</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-label">Errors</div>
-      <div class="stat-value" data-type="error" id="statErr">0</div>
-    </div>
+  <div class="badge" data-s="off" id="badge" role="status" aria-live="polite">
+    <span class="dot"></span><span id="badgeText">Niet verbonden</span>
   </div>
+</header>
 
-  <!-- Temperature registers -->
-  <section aria-label="Temperatuurregisters">
-    <div class="section-header">
-      <span class="section-icon" aria-hidden="true">🌡</span>
-      <h2 class="section-title">Temperaturen & Drukken</h2>
-    </div>
-    <div class="register-grid" id="tempRegisters"></div>
-  </section>
-
-  <!-- Status registers -->
-  <section aria-label="Statusregisters">
-    <div class="section-header">
-      <span class="section-icon" aria-hidden="true">⚙</span>
-      <h2 class="section-title">Machine Status</h2>
-    </div>
-    <div class="register-grid" id="statusRegisters"></div>
-  </section>
-
-  <!-- Counters -->
-  <section aria-label="Tellers">
-    <div class="section-header">
-      <span class="section-icon" aria-hidden="true">📊</span>
-      <h2 class="section-title">Tellers</h2>
-    </div>
-    <div class="register-grid" id="counterRegisters"></div>
-  </section>
-
-  <!-- Configuratie -->
-  <section aria-label="Instellingen" style="margin-bottom: 24px;">
-    <div class="section-header">
-      <span class="section-icon" aria-hidden="true">🛠</span>
-      <h2 class="section-title">Configuratie</h2>
-    </div>
-    <div class="register-card">
-      <div class="register-label">
-        <span class="register-name">Modbus Baudrate</span>
-        <span class="register-addr">Systeeminstelling — opgeslagen in ESP32</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
-        <label for="baudRateSelect" class="sr-only">Baudrate selecteren</label>
-        <select id="baudRateSelect"
-                style="background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 6px 8px; font-family: var(--font-mono); font-size: 0.8rem; cursor: pointer;">
-          <option value="1200">1200</option>
-          <option value="2400">2400</option>
-          <option value="4800">4800</option>
-          <option value="9600" selected>9600</option>
-          <option value="19200">19200</option>
-          <option value="38400">38400</option>
-          <option value="57600">57600</option>
-          <option value="115200">115200</option>
-        </select>
-        <button id="btnSetBaud"
-                style="padding: 6px 14px; border: 1px solid var(--accent-blue-dim); border-radius: var(--radius-sm); background: rgba(59,130,246,0.12); color: var(--accent-blue); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;"
-                aria-label="Baudrate toepassen op ESP32">
-          Toepassen
-        </button>
-      </div>
-    </div>
-  </section>
-
-  <!-- Log -->
-  <section class="log-section" aria-label="Eventlog">
-    <div class="section-header">
-      <span class="section-icon" aria-hidden="true">📋</span>
-      <h2 class="section-title">Log</h2>
-    </div>
-    <div class="log-container" id="logContainer" role="log" aria-live="polite" aria-relevant="additions">
-    </div>
-  </section>
-
-  <!-- Empty state when not connected -->
-  <div class="empty-state" id="emptyState">
-    <div class="empty-state-icon" aria-hidden="true">📡</div>
-    <div class="empty-state-text">
-      Druk op <strong>Verbinden</strong> om de ESP32 te koppelen.<br>
-      Zorg dat Bluetooth aan staat op je telefoon.
-    </div>
-  </div>
-
+<div class="compat-warn" id="compat" role="alert">
+  <b>Web Bluetooth niet beschikbaar</b>
+  <p>Gebruik Chrome op Android of Bluefy op iOS.</p>
 </div>
 
+<!-- Tabs -->
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-tab="dash" id="tabDash">Dashboard</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="admin" id="tabAdmin">Admin</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- DASHBOARD PANEL -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="panel" data-active id="panelDash">
+
+  <!-- Profile selector + connect -->
+  <div class="card" style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+    <div style="flex:1">
+      <label for="selProfile">Profiel</label>
+      <select id="selProfile"><option value="">— Kies profiel —</option></select>
+    </div>
+    <button class="btn btn-green" id="btnConnect" style="margin-top:16px;">Verbinden</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats">
+    <div class="stat"><div class="stat-lbl">Uptime</div><div class="stat-val" id="sUp">--</div></div>
+    <div class="stat"><div class="stat-lbl">Baud</div><div class="stat-val" id="sBaud">--</div></div>
+    <div class="stat"><div class="stat-lbl">OK</div><div class="stat-val green" id="sOk">0</div></div>
+    <div class="stat"><div class="stat-lbl">Err</div><div class="stat-val red" id="sErr">0</div></div>
+  </div>
+
+  <!-- Register data -->
+  <div id="regCards"></div>
+
+  <!-- Log -->
+  <div style="margin-top:14px;">
+    <div class="section-hdr"><span class="section-title">Log</span></div>
+    <div class="log" id="logBox"></div>
+  </div>
+
+  <div class="empty" id="emptyState">Selecteer een profiel en druk op <strong>Verbinden</strong>.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- ADMIN PANEL -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="panel" id="panelAdmin">
+
+  <!-- Profile list -->
+  <div class="section-hdr"><span class="section-title">Machine Profielen</span></div>
+  <div id="profileList"></div>
+  <button class="btn btn-full" id="btnNewProfile" style="margin:10px 0;">+ Nieuw profiel</button>
+
+  <!-- Profile editor (hidden until a profile is selected) -->
+  <div id="editor" style="display:none;">
+    <div class="section-hdr" style="margin-top:16px;">
+      <span class="section-title" id="editorTitle">Profiel bewerken</span>
+    </div>
+
+    <div class="form-row form-row-2">
+      <div><label for="eName">Profielnaam</label><input type="text" id="eName" placeholder="Bijv. Carrier 30XA"></div>
+      <div><label for="eSlaveId">Slave ID</label><input type="number" id="eSlaveId" value="1" min="1" max="247"></div>
+    </div>
+    <div class="form-row form-row-2">
+      <div>
+        <label for="eBaud">Baudrate</label>
+        <select id="eBaud">
+          <option value="1200">1200</option><option value="2400">2400</option>
+          <option value="4800">4800</option><option value="9600" selected>9600</option>
+          <option value="19200">19200</option><option value="38400">38400</option>
+          <option value="57600">57600</option><option value="115200">115200</option>
+        </select>
+      </div>
+      <div>
+        <label for="eParity">Parity</label>
+        <select id="eParity">
+          <option value="8N1" selected>8N1</option><option value="8E1">8E1</option><option value="8O1">8O1</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Register map -->
+    <div class="section-hdr" style="margin-top:14px;">
+      <span class="section-title">Register Map</span>
+    </div>
+    <div class="reg-row hdr">
+      <span>Adres</span><span>Naam</span><span>Eenheid</span><span>Schaal</span>
+      <span>Signed</span><span>Input</span><span></span>
+    </div>
+    <div id="regRows"></div>
+    <button class="btn btn-sm" id="btnAddReg" style="margin-top:8px;">+ Register</button>
+
+    <div style="display:flex;gap:8px;margin-top:14px;">
+      <button class="btn btn-green btn-full" id="btnSaveProfile">Opslaan</button>
+      <button class="btn btn-red btn-sm" id="btnDeleteProfile">Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- .app -->
+
 <script>
-/**
- * KoelDiag — Web Bluetooth Modbus Dashboard
- *
- * Connects to the ESP32 BLE GATT server, subscribes to Modbus register
- * notifications, and renders live data in a mobile-first dashboard.
- *
- * Security: Only connects to devices advertising the specific service UUID.
- * The BLE link is encrypted (handled by the ESP32 firmware pairing).
- *
- * Browser support: Chrome 56+ (Android), Edge, Chrome OS, Bluefy (iOS).
- * NOT supported: Safari, Firefox, in-app WebViews.
- */
-(function() {
-    'use strict';
+(function(){
+'use strict';
 
-    // ─── BLE UUIDs (must match firmware) ──────────────────────────────
-    const SERVICE_UUID         = '4e53ff01-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-    const CHAR_REGISTER_DATA   = '4e53ff02-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-    const CHAR_STATUS          = '4e53ff03-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-const CHAR_CONFIG          = '4e53ff04-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-    const CHAR_CONFIG_WRITE    = '4e53ff05-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-    // ─── Human-readable labels (NL) ───────────────────────────────────
-    const REGISTER_LABELS = {
-        water_in:       'Water in',
-        water_uit:       'Verdampertemp.',
-        setpoint:        'Setpoint',
-        defrost_temp:    'Ontdooitemp.',
-        superheat:       'Oververhitting',
-        comp_status:     'Compressor',
-        fan_status:      'Ventilator',
-        defrost_active:  'Ontdooien',
-        alarm_code:      'Alarmcode',
-        suction_press:   'Zuigdruk',
-        discharge_press: 'Persdruk',
-        comp_hours:      'Draaiuren comp.',
-        energy_kwh:      'Energieverbruik',
-    };
+// ─── BLE UUIDs ────────────────────────────────────────────────────
+const SVC    = '4e53ff01-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
+const C_DATA = '4e53ff02-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
+const C_STAT = '4e53ff03-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
+const C_CFG  = '4e53ff04-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
+const C_CMD  = '4e53ff05-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
 
-    // Which category each register belongs to
-    const TEMP_REGS    = ['water_in','water_uit','setpoint','defrost_temp','superheat','suction_press','discharge_press'];
-    const STATUS_REGS  = ['comp_status','fan_status','defrost_active','alarm_code'];
-    const COUNTER_REGS = ['comp_hours','energy_kwh'];
+const STORAGE_KEY = 'koeldiag_profiles';
 
-    // Binary status registers (display as ON/OFF instead of number)
-    const BINARY_REGS = new Set(['comp_status','fan_status','defrost_active']);
+// ─── State ────────────────────────────────────────────────────────
+let profiles = [];
+let editingId = null;
+let activeProfile = null;
+let bleDevice = null, bleServer = null, cmdChar = null;
+let connected = false;
 
-    // ─── DOM References ───────────────────────────────────────────────
-    const $ = (id) => document.getElementById(id);
-    const baudRateSelect  = $('baudRateSelect');
-    const btnSetBaud      = $('btnSetBaud');
-    const statusBadge     = $('statusBadge');
-    const statusText      = $('statusText');
-    const btnConnect      = $('btnConnect');
-    const btnConnectText  = $('btnConnectText');
-    const compatWarning   = $('compatWarning');
-    const emptyState      = $('emptyState');
-    const logContainer    = $('logContainer');
-    const statUptime      = $('statUptime');
-    const statOk          = $('statOk');
-    const statErr         = $('statErr');
+// ─── DOM ──────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const badge = $('badge'), badgeText = $('badgeText');
+const selProfile = $('selProfile'), btnConnect = $('btnConnect');
+const regCards = $('regCards'), logBox = $('logBox'), emptyState = $('emptyState');
+const sUp = $('sUp'), sBaud = $('sBaud'), sOk = $('sOk'), sErr = $('sErr');
+const profileList = $('profileList'), editor = $('editor'), editorTitle = $('editorTitle');
+const eName = $('eName'), eSlaveId = $('eSlaveId'), eBaud = $('eBaud'), eParity = $('eParity');
+const regRows = $('regRows');
 
-    // ─── State ────────────────────────────────────────────────────────
-    let bleDevice = null;
-    let bleServer = null;
-    let dataCharacteristic = null;
-    let isConnected = false;
-    let registerConfig = null;  // Received from ESP32 config characteristic
-    let lastData = null;
-    let reconnectAttempts = 0;
-    const MAX_RECONNECT = 3;
+// ─── Profiles: localStorage ──────────────────────────────────────
+function loadProfiles() {
+  try { profiles = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+  catch(e) { profiles = []; }
+}
+function saveProfiles() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(profiles));
+}
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
 
-    // ─── Browser Compatibility Check ──────────────────────────────────
-    function checkBrowserSupport() {
-        if (!navigator.bluetooth) {
-            compatWarning.style.display = 'block';
-            btnConnect.disabled = true;
-            log('Web Bluetooth API niet beschikbaar', 'error');
-            return false;
-        }
-        return true;
-    }
+// ─── Tabs ─────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected','false'));
+    tab.setAttribute('aria-selected','true');
+    document.querySelectorAll('.panel').forEach(p => p.removeAttribute('data-active'));
+    $('panel' + (tab.dataset.tab === 'dash' ? 'Dash' : 'Admin')).setAttribute('data-active','');
+  });
+});
 
-    // ─── Logging ──────────────────────────────────────────────────────
-    function log(message, type = 'info') {
-        const now = new Date();
-        const timeStr = now.toLocaleTimeString('nl-NL', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit'
-        });
+// ─── Profile List Render ──────────────────────────────────────────
+function renderProfileList() {
+  profileList.innerHTML = '';
+  profiles.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'profile-item';
+    div.dataset.active = editingId === p.id ? 'true' : 'false';
+    div.innerHTML = `
+      <div>
+        <div class="profile-name">${esc(p.name || 'Naamloos')}</div>
+        <div class="profile-meta">Slave ${p.slaveId} | ${p.baud} baud | ${p.registers?.length || 0} regs</div>
+      </div>
+      <div class="profile-actions">
+        <button class="btn btn-sm" data-edit="${p.id}">Bewerk</button>
+      </div>
+    `;
+    div.querySelector('[data-edit]').addEventListener('click', e => {
+      e.stopPropagation();
+      openEditor(p.id);
+    });
+    profileList.appendChild(div);
+  });
+}
 
-        const entry = document.createElement('div');
-        entry.className = 'log-entry';
-        entry.innerHTML = `
-            <span class="log-time">${timeStr}</span>
-            <span class="log-msg" data-type="${type}">${escapeHtml(message)}</span>
-        `;
-        logContainer.appendChild(entry);
+function renderProfileSelect() {
+  const cur = selProfile.value;
+  selProfile.innerHTML = '<option value="">— Kies profiel —</option>';
+  profiles.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name || 'Naamloos';
+    selProfile.appendChild(opt);
+  });
+  if (cur) selProfile.value = cur;
+}
 
-        // Keep max 100 entries
-        while (logContainer.children.length > 100) {
-            logContainer.removeChild(logContainer.firstChild);
-        }
+// ─── Profile Editor ───────────────────────────────────────────────
+function openEditor(id) {
+  const p = profiles.find(x => x.id === id);
+  if (!p) return;
+  editingId = id;
+  editor.style.display = 'block';
+  editorTitle.textContent = 'Profiel: ' + (p.name || 'Naamloos');
+  eName.value = p.name || '';
+  eSlaveId.value = p.slaveId || 1;
+  eBaud.value = p.baud || 9600;
+  eParity.value = p.parity || '8N1';
+  renderRegRows(p.registers || []);
+  renderProfileList();
+}
 
-        logContainer.scrollTop = logContainer.scrollHeight;
-    }
+function closeEditor() {
+  editingId = null;
+  editor.style.display = 'none';
+  renderProfileList();
+}
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
+// ─── Register Row Editor ──────────────────────────────────────────
+function renderRegRows(regs) {
+  regRows.innerHTML = '';
+  regs.forEach((r, i) => addRegRow(r, i));
+}
 
-    // ─── Status Updates ───────────────────────────────────────────────
-    function setStatus(status, text) {
-        statusBadge.dataset.status = status;
-        statusText.textContent = text;
-    }
+function addRegRow(r, idx) {
+  const row = document.createElement('div');
+  row.className = 'reg-row';
+  row.dataset.idx = idx !== undefined ? idx : regRows.children.length;
+  row.innerHTML = `
+    <input type="number" class="r-addr" value="${r?.address ?? ''}" placeholder="0" min="0" max="65535" aria-label="Register adres">
+    <input type="text" class="r-name" value="${esc(r?.name ?? '')}" placeholder="naam" aria-label="Register naam">
+    <input type="text" class="r-unit" value="${esc(r?.unit ?? '')}" placeholder="°C" aria-label="Eenheid">
+    <input type="number" class="r-scale" value="${r?.scale ?? 1}" step="0.01" aria-label="Schaalfactor">
+    <input type="checkbox" class="cb r-signed" ${r?.isSigned ? 'checked' : ''} aria-label="Signed">
+    <input type="checkbox" class="cb r-input" ${r?.isInput ? 'checked' : ''} aria-label="Input register">
+    <button class="del-btn" aria-label="Verwijder register">&times;</button>
+  `;
+  row.querySelector('.del-btn').addEventListener('click', () => row.remove());
+  regRows.appendChild(row);
+}
 
-    function setConnectButton(connected) {
-        btnConnect.dataset.connected = connected ? 'true' : 'false';
-        btnConnectText.textContent = connected ? 'Verbinding verbreken' : 'Verbinden met ESP32';
-    }
+function collectRegisters() {
+  const regs = [];
+  regRows.querySelectorAll('.reg-row').forEach(row => {
+    const addr = parseInt(row.querySelector('.r-addr').value);
+    const name = row.querySelector('.r-name').value.trim();
+    if (isNaN(addr) || !name) return;
+    regs.push({
+      address: addr,
+      name: name.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 19),
+      unit: row.querySelector('.r-unit').value.trim().substring(0, 7),
+      scale: parseFloat(row.querySelector('.r-scale').value) || 1,
+      isSigned: row.querySelector('.r-signed').checked,
+      isInput: row.querySelector('.r-input').checked,
+    });
+  });
+  return regs;
+}
 
-    // ─── Format Uptime ───────────────────────────────────────────────
-    function formatUptime(seconds) {
-        if (seconds < 60) return `${seconds}s`;
-        if (seconds < 3600) return `${Math.floor(seconds/60)}m ${seconds%60}s`;
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        return `${h}u ${m}m`;
-    }
+// ─── Profile CRUD ─────────────────────────────────────────────────
+$('btnNewProfile').addEventListener('click', () => {
+  const p = { id: genId(), name: 'Nieuw profiel', slaveId: 1, baud: 9600, parity: '8N1', registers: [] };
+  profiles.push(p);
+  saveProfiles();
+  renderProfileList();
+  renderProfileSelect();
+  openEditor(p.id);
+});
 
-    // ─── Build Register Cards ─────────────────────────────────────────
-    function buildRegisterCards() {
-        const containers = {
-            temp: $('tempRegisters'),
-            status: $('statusRegisters'),
-            counter: $('counterRegisters'),
-        };
+$('btnSaveProfile').addEventListener('click', () => {
+  if (!editingId) return;
+  const p = profiles.find(x => x.id === editingId);
+  if (!p) return;
+  p.name = eName.value.trim() || 'Naamloos';
+  p.slaveId = parseInt(eSlaveId.value) || 1;
+  p.baud = parseInt(eBaud.value) || 9600;
+  p.parity = eParity.value;
+  p.registers = collectRegisters();
+  saveProfiles();
+  renderProfileList();
+  renderProfileSelect();
+  editorTitle.textContent = 'Profiel: ' + p.name;
+  log('Profiel opgeslagen: ' + p.name, 'success');
+});
 
-        // Clear existing
-        Object.values(containers).forEach(c => c.innerHTML = '');
+$('btnDeleteProfile').addEventListener('click', () => {
+  if (!editingId) return;
+  const p = profiles.find(x => x.id === editingId);
+  if (!confirm('Profiel "' + (p?.name || '') + '" verwijderen?')) return;
+  profiles = profiles.filter(x => x.id !== editingId);
+  saveProfiles();
+  closeEditor();
+  renderProfileList();
+  renderProfileSelect();
+  log('Profiel verwijderd', 'warn');
+});
 
-        const allRegs = [...TEMP_REGS, ...STATUS_REGS, ...COUNTER_REGS];
-        allRegs.forEach(regName => {
-            let container;
-            if (TEMP_REGS.includes(regName)) container = containers.temp;
-            else if (STATUS_REGS.includes(regName)) container = containers.status;
-            else container = containers.counter;
+$('btnAddReg').addEventListener('click', () => addRegRow({}, regRows.children.length));
 
-            const card = document.createElement('div');
-            card.className = 'register-card';
-            card.id = `reg-${regName}`;
-            card.setAttribute('role', 'listitem');
+// ─── BLE Connection ───────────────────────────────────────────────
+btnConnect.addEventListener('click', async () => {
+  if (connected) { disconnect(); return; }
 
-            // Find address from config if available
-            const addrInfo = registerConfig?.regs?.find(r => r.n === regName);
-            const addrStr = addrInfo ? `Reg ${addrInfo.addr}` : '';
+  const pid = selProfile.value;
+  if (!pid) { log('Selecteer eerst een profiel', 'warn'); return; }
+  activeProfile = profiles.find(x => x.id === pid);
+  if (!activeProfile || !activeProfile.registers?.length) {
+    log('Profiel heeft geen registers', 'error'); return;
+  }
 
-            card.innerHTML = `
-                <div class="register-label">
-                    <span class="register-name">${REGISTER_LABELS[regName] || regName}</span>
-                    <span class="register-addr">${addrStr}</span>
-                </div>
-                <div class="register-value" data-state="null" id="val-${regName}"
-                     aria-label="${REGISTER_LABELS[regName] || regName}">
-                    --
-                </div>
-            `;
-            container.appendChild(card);
-        });
-    }
+  try {
+    setStatus('wait', 'Zoeken...');
+    btnConnect.disabled = true;
+    log('Bluetooth scan...', 'info');
 
-    // ─── Update Register Display ──────────────────────────────────────
-    function updateRegisters(data) {
-        if (!data?.regs) return;
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters: [{ services: [SVC] }],
+      optionalServices: [SVC]
+    });
+    bleDevice.addEventListener('gattserverdisconnected', onDisconnect);
 
-        data.regs.forEach(reg => {
-            const valEl = document.querySelector(`#val-${reg.n}`);
-            const cardEl = document.querySelector(`#reg-${reg.n}`);
-            if (!valEl || !cardEl) return;
+    setStatus('wait', 'Verbinden...');
+    bleServer = await bleDevice.gatt.connect();
+    log('GATT verbonden', 'success');
 
-            if (reg.v === null || reg.v === undefined) {
-                valEl.dataset.state = 'null';
-                valEl.innerHTML = '<span style="font-style:italic;font-size:0.8rem">geen data</span>';
-                valEl.setAttribute('aria-label',
-                    `${REGISTER_LABELS[reg.n] || reg.n}: geen data`);
-                return;
-            }
+    const service = await bleServer.getPrimaryService(SVC);
+    cmdChar = await service.getCharacteristic(C_CMD);
 
-            // Flash effect on update
-            cardEl.dataset.fresh = 'true';
-            setTimeout(() => cardEl.dataset.fresh = 'false', 800);
+    // Stuur profiel naar ESP32
+    await sendProfile(activeProfile);
 
-            // Binary registers
-            if (BINARY_REGS.has(reg.n)) {
-                const isOn = reg.v !== 0;
-                valEl.dataset.state = isOn ? 'on' : 'off';
-                valEl.innerHTML = isOn ? 'AAN' : 'UIT';
-                valEl.setAttribute('aria-label',
-                    `${REGISTER_LABELS[reg.n] || reg.n}: ${isOn ? 'aan' : 'uit'}`);
-                return;
-            }
+    // Subscribe to data notifications
+    const dataChar = await service.getCharacteristic(C_DATA);
+    await dataChar.startNotifications();
+    dataChar.addEventListener('characteristicvaluechanged', onData);
 
-            // Alarm code
-            if (reg.n === 'alarm_code') {
-                const hasAlarm = reg.v !== 0;
-                valEl.dataset.state = hasAlarm ? 'alarm' : 'off';
-                cardEl.dataset.alarm = hasAlarm ? 'true' : 'false';
-                valEl.innerHTML = hasAlarm
-                    ? `<span>E${reg.v}</span>`
-                    : 'Geen';
-                valEl.setAttribute('aria-label',
-                    `Alarmcode: ${hasAlarm ? 'E' + reg.v : 'geen alarm'}`);
-                return;
-            }
-
-            // Numeric registers
-            valEl.dataset.state = '';
-            valEl.innerHTML = `
-                <span>${reg.v}</span>
-                <span class="register-unit">${reg.u}</span>
-            `;
-            valEl.setAttribute('aria-label',
-                `${REGISTER_LABELS[reg.n] || reg.n}: ${reg.v} ${reg.u}`);
-        });
-
-        // Update stats
-        statOk.textContent = data.ok || 0;
-        statErr.textContent = data.err || 0;
-        if (data.ts) statUptime.textContent = formatUptime(data.ts);
-    }
-
-    // ─── BLE Connection ───────────────────────────────────────────────
-    async function connect() {
-        if (isConnected) {
-            disconnect();
-            return;
-        }
-
-        try {
-            setStatus('connecting', 'Zoeken...');
-            log('Bluetooth-scan gestart...', 'info');
-            btnConnect.disabled = true;
-
-            // Request device with service filter (security: only our service)
-            bleDevice = await navigator.bluetooth.requestDevice({
-                filters: [{
-                    services: [SERVICE_UUID]
-                }],
-                optionalServices: [SERVICE_UUID]
-            });
-
-            log(`Apparaat gevonden: ${bleDevice.name || 'onbekend'}`, 'success');
-
-            // Listen for disconnection
-            bleDevice.addEventListener('gattserverdisconnected', onDisconnected);
-
-            // Connect to GATT server
-            setStatus('connecting', 'Verbinden...');
-            bleServer = await bleDevice.gatt.connect();
-            log('GATT-server verbonden', 'success');
-
-            // Get service
-            const service = await bleServer.getPrimaryService(SERVICE_UUID);
-
-            // Read config characteristic (register map metadata)
-            try {
-                const configChar = await service.getCharacteristic(CHAR_CONFIG);
-                const configValue = await configChar.readValue();
-                const configStr = new TextDecoder().decode(configValue);
-                registerConfig = JSON.parse(configStr);
-                log(`Config ontvangen: ${registerConfig.regs?.length || 0} registers, slave ${registerConfig.slave}`, 'info');
-                if (registerConfig.baud) {
-                    baudRateSelect.value = String(registerConfig.baud);
-                }
-            } catch (e) {
-                log('Config characteristic niet gelezen (optioneel)', 'warn');
-            }
-
-            // Build UI cards
-            buildRegisterCards();
-            emptyState.style.display = 'none';
-
-            // Subscribe to register data notifications
-            dataCharacteristic = await service.getCharacteristic(CHAR_REGISTER_DATA);
-            await dataCharacteristic.startNotifications();
-            dataCharacteristic.addEventListener('characteristicvaluechanged', onDataNotification);
-
-            log('Geabonneerd op register data', 'success');
-
-            // Done
-            isConnected = true;
-            reconnectAttempts = 0;
-            setStatus('connected', 'Verbonden');
-            setConnectButton(true);
-            log('Verbinding actief — data wordt ontvangen', 'success');
-
-        } catch (error) {
-            if (error.name === 'NotFoundError') {
-                log('Geen apparaat geselecteerd', 'warn');
-                setStatus('disconnected', 'Geen verbinding');
-            } else {
-                log(`Verbindingsfout: ${error.message}`, 'error');
-                setStatus('error', 'Fout');
-            }
-        } finally {
-            btnConnect.disabled = false;
-        }
-    }
-
-    function disconnect() {
-        if (bleDevice?.gatt?.connected) {
-            bleDevice.gatt.disconnect();
-        }
-        cleanupConnection();
-        log('Handmatig losgekoppeld', 'info');
-    }
-
-    function cleanupConnection() {
-        isConnected = false;
-        bleServer = null;
-        dataCharacteristic = null;
-        setStatus('disconnected', 'Geen verbinding');
-        setConnectButton(false);
-    }
-
-    function onDisconnected(event) {
-        log('BLE-verbinding verbroken', 'warn');
-        cleanupConnection();
-
-        // Auto-reconnect (limited attempts)
-        if (reconnectAttempts < MAX_RECONNECT && bleDevice) {
-            reconnectAttempts++;
-            log(`Herverbinden poging ${reconnectAttempts}/${MAX_RECONNECT}...`, 'info');
-            setStatus('connecting', 'Herverbinden...');
-
-            setTimeout(async () => {
-                try {
-                    bleServer = await bleDevice.gatt.connect();
-                    const service = await bleServer.getPrimaryService(SERVICE_UUID);
-                    dataCharacteristic = await service.getCharacteristic(CHAR_REGISTER_DATA);
-                    await dataCharacteristic.startNotifications();
-                    dataCharacteristic.addEventListener('characteristicvaluechanged', onDataNotification);
-
-                    isConnected = true;
-                    setStatus('connected', 'Herverbonden');
-                    setConnectButton(true);
-                    log('Herverbonden!', 'success');
-                } catch (e) {
-                    log(`Herverbinden mislukt: ${e.message}`, 'error');
-                    if (reconnectAttempts >= MAX_RECONNECT) {
-                        setStatus('error', 'Verbinding verloren');
-                        log('Max herverbindpogingen bereikt', 'error');
-                    }
-                }
-            }, 2000);
-        }
-    }
-
-    // ─── Data Notification Handler ────────────────────────────────────
-    function onDataNotification(event) {
-        try {
-            const raw = new TextDecoder().decode(event.target.value);
-            const data = JSON.parse(raw);
-            lastData = data;
-            updateRegisters(data);
-        } catch (e) {
-            log(`Parse error: ${e.message}`, 'error');
-        }
-    }
-
-    // ─── Baud Rate Update ─────────────────────────────────────────────
-    async function updateBaudRate() {
-        if (!bleServer || !isConnected) {
-            log('Eerst verbinden met ESP32', 'warn');
-            return;
-        }
-
-        const newBaud = parseInt(baudRateSelect.value, 10);
-        log(`Baudrate wijzigen naar ${newBaud}...`, 'info');
-        btnSetBaud.disabled = true;
-
-        try {
-            const service = await bleServer.getPrimaryService(SERVICE_UUID);
-            const configWriteChar = await service.getCharacteristic(CHAR_CONFIG_WRITE);
-            const payload = new TextEncoder().encode(JSON.stringify({ baud: newBaud }));
-            await configWriteChar.writeValueWithoutResponse(payload);
-            log(`Baudrate ingesteld op ${newBaud} baud`, 'success');
-        } catch (error) {
-            const msg = error?.message || error?.toString() || JSON.stringify(error);
-            log(`Fout bij instellen baudrate: ${msg}`, 'error');
-        } finally {
-            btnSetBaud.disabled = false;
-        }
-    }
-
-    // ─── Init ─────────────────────────────────────────────────────────
-    function init() {
-        const supported = checkBrowserSupport();
-
-        if (supported) {
-            btnConnect.addEventListener('click', connect);
-            btnSetBaud.addEventListener('click', updateBaudRate);
-        }
-
-        buildRegisterCards();
-        log('KoelDiag geïnitialiseerd', 'info');
-        log('Firmware verwacht: KoelDiag-ESP32', 'info');
-    }
-
-    // Run on DOM ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+    connected = true;
+    setStatus('on', 'Verbonden');
+    btnConnect.textContent = 'Verbreken';
+    btnConnect.className = 'btn btn-red';
+    emptyState.style.display = 'none';
+    buildDashCards(activeProfile);
+    sBaud.textContent = activeProfile.baud;
+    log('Verbonden — profiel: ' + activeProfile.name, 'success');
+  } catch(e) {
+    if (e.name === 'NotFoundError') {
+      setStatus('off', 'Niet verbonden');
+      log('Geen apparaat geselecteerd', 'warn');
     } else {
-        init();
+      setStatus('err', 'Fout');
+      log('Fout: ' + e.message, 'error');
     }
+  } finally {
+    btnConnect.disabled = false;
+  }
+});
+
+function disconnect() {
+  if (bleDevice?.gatt?.connected) bleDevice.gatt.disconnect();
+  cleanup();
+  log('Losgekoppeld', 'info');
+}
+
+function cleanup() {
+  connected = false;
+  bleServer = null; cmdChar = null;
+  setStatus('off', 'Niet verbonden');
+  btnConnect.textContent = 'Verbinden';
+  btnConnect.className = 'btn btn-green';
+}
+
+function onDisconnect() {
+  log('Verbinding verloren', 'warn');
+  cleanup();
+}
+
+// ─── Send Profile to ESP32 ────────────────────────────────────────
+async function sendProfile(p) {
+  const enc = new TextEncoder();
+
+  // 1. Config header
+  const cfg = JSON.stringify({
+    cmd: 'cfg',
+    slave: p.slaveId,
+    baud: p.baud,
+    count: p.registers.length
+  });
+  log('Stuur config: slave=' + p.slaveId + ' baud=' + p.baud, 'info');
+  await cmdChar.writeValueWithoutResponse(enc.encode(cfg));
+  await delay(200);
+
+  // 2. Registers one by one
+  for (let i = 0; i < p.registers.length; i++) {
+    const r = p.registers[i];
+    const reg = JSON.stringify({
+      cmd: 'reg', i: i,
+      a: r.address, n: r.name, u: r.unit,
+      s: r.scale, sg: r.isSigned ? 1 : 0, in: r.isInput ? 1 : 0
+    });
+    await cmdChar.writeValueWithoutResponse(enc.encode(reg));
+    await delay(100);
+  }
+  log(p.registers.length + ' registers verstuurd', 'success');
+
+  // 3. Start polling
+  await delay(200);
+  await cmdChar.writeValueWithoutResponse(enc.encode('{"cmd":"start"}'));
+  log('Polling gestart', 'success');
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ─── Data Handler ─────────────────────────────────────────────────
+function onData(event) {
+  try {
+    const raw = new TextDecoder().decode(event.target.value);
+    const data = JSON.parse(raw);
+    updateDashCards(data);
+    if (data.ok !== undefined) sOk.textContent = data.ok;
+    if (data.err !== undefined) sErr.textContent = data.err;
+    if (data.ts !== undefined) sUp.textContent = fmtTime(data.ts);
+  } catch(e) {
+    log('Parse error: ' + e.message, 'error');
+  }
+}
+
+// ─── Dashboard Cards ──────────────────────────────────────────────
+function buildDashCards(profile) {
+  regCards.innerHTML = '';
+  if (!profile?.registers) return;
+  profile.registers.forEach(r => {
+    const card = document.createElement('div');
+    card.className = 'reg-card';
+    card.id = 'rc-' + r.name;
+    card.innerHTML = `
+      <div>
+        <div class="reg-name">${esc(r.name)}</div>
+        <div class="reg-addr">${r.isInput ? 'Input' : 'Holding'} reg ${r.address}</div>
+      </div>
+      <div class="reg-val" data-s="null" id="rv-${r.name}">--</div>
+    `;
+    regCards.appendChild(card);
+  });
+}
+
+function updateDashCards(data) {
+  if (!data?.regs) return;
+  data.regs.forEach(r => {
+    const valEl = document.querySelector('#rv-' + r.n);
+    const cardEl = document.querySelector('#rc-' + r.n);
+    if (!valEl || !cardEl) return;
+
+    if (r.v === null || r.v === undefined) {
+      valEl.dataset.s = 'null';
+      valEl.innerHTML = '<span style="font-style:italic;font-size:0.78rem">geen data</span>';
+      return;
+    }
+
+    cardEl.dataset.fresh = 'true';
+    setTimeout(() => cardEl.dataset.fresh = 'false', 600);
+
+    valEl.dataset.s = '';
+    valEl.innerHTML = `<span>${r.v}</span><span class="reg-unit">${esc(r.u)}</span>`;
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────
+function setStatus(s, txt) { badge.dataset.s = s; badgeText.textContent = txt; }
+
+function fmtTime(sec) {
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.floor(sec/60) + 'm';
+  return Math.floor(sec/3600) + 'u ' + Math.floor((sec%3600)/60) + 'm';
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function log(msg, type) {
+  const t = new Date().toLocaleTimeString('nl-NL', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const e = document.createElement('div');
+  e.className = 'log-entry';
+  e.innerHTML = `<span class="log-t">${t}</span><span class="log-m" data-t="${type}">${esc(msg)}</span>`;
+  logBox.appendChild(e);
+  while (logBox.children.length > 80) logBox.removeChild(logBox.firstChild);
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+// ─── Init ─────────────────────────────────────────────────────────
+function init() {
+  if (!navigator.bluetooth) {
+    $('compat').style.display = 'block';
+    btnConnect.disabled = true;
+  }
+  loadProfiles();
+  renderProfileList();
+  renderProfileSelect();
+  log('KoelDiag v3 gestart', 'info');
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
+
 })();
 </script>
 </body>
