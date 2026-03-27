@@ -717,6 +717,35 @@ function init() {
     btnConnect.disabled = true;
   }
   loadProfiles();
+
+  // Voeg standaard testprofiel toe als er geen profielen zijn
+  if (profiles.length === 0) {
+    profiles.push({
+      id: 'default_test',
+      name: 'Test profiel',
+      slaveId: 1,
+      baud: 9600,
+      parity: '8N1',
+      registers: [
+        { address: 0,  name: 'room_temp',       unit: '°C',  scale: 0.1, isSigned: true,  isInput: true  },
+        { address: 1,  name: 'evap_temp',       unit: '°C',  scale: 0.1, isSigned: true,  isInput: true  },
+        { address: 2,  name: 'setpoint',        unit: '°C',  scale: 0.1, isSigned: true,  isInput: false },
+        { address: 3,  name: 'defrost_temp',    unit: '°C',  scale: 0.1, isSigned: true,  isInput: true  },
+        { address: 4,  name: 'superheat',       unit: 'K',   scale: 0.1, isSigned: true,  isInput: true  },
+        { address: 10, name: 'comp_status',     unit: '',    scale: 1,   isSigned: false, isInput: true  },
+        { address: 11, name: 'fan_status',      unit: '',    scale: 1,   isSigned: false, isInput: true  },
+        { address: 12, name: 'defrost_active',  unit: '',    scale: 1,   isSigned: false, isInput: true  },
+        { address: 13, name: 'alarm_code',      unit: '',    scale: 1,   isSigned: false, isInput: true  },
+        { address: 20, name: 'suction_press',   unit: 'bar', scale: 0.1, isSigned: true,  isInput: true  },
+        { address: 21, name: 'discharge_press', unit: 'bar', scale: 0.1, isSigned: true,  isInput: true  },
+        { address: 30, name: 'comp_hours',      unit: 'h',   scale: 1,   isSigned: false, isInput: false },
+        { address: 31, name: 'energy_kwh',      unit: 'kWh', scale: 0.1, isSigned: false, isInput: false },
+      ]
+    });
+    saveProfiles();
+    log('Test profiel aangemaakt', 'info');
+  }
+
   renderProfileList();
   renderProfileSelect();
   log('KoelDiag v3 gestart', 'info');
