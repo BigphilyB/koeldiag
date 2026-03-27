@@ -1022,10 +1022,11 @@ const CHAR_CONFIG          = '4e53ff04-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
             const service = await bleServer.getPrimaryService(SERVICE_UUID);
             const configWriteChar = await service.getCharacteristic(CHAR_CONFIG_WRITE);
             const payload = new TextEncoder().encode(JSON.stringify({ baud: newBaud }));
-            await configWriteChar.writeValueWithResponse(payload);
+            await configWriteChar.writeValueWithoutResponse(payload);
             log(`Baudrate ingesteld op ${newBaud} baud`, 'success');
         } catch (error) {
-            log(`Fout bij instellen baudrate: ${error.message}`, 'error');
+            const msg = error?.message || error?.toString() || JSON.stringify(error);
+            log(`Fout bij instellen baudrate: ${msg}`, 'error');
         } finally {
             btnSetBaud.disabled = false;
         }
