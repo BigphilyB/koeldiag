@@ -314,9 +314,9 @@ label { font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; marg
     <div class="section-hdr" style="margin-top:14px;">
       <span class="section-title">Register Map</span>
     </div>
-    <div class="reg-row hdr">
-      <span>Adres</span><span>Naam</span><span>Eenheid</span><span>Schaal</span>
-      <span>Signed</span><span>Input</span><span></span>
+    <div class="reg-row hdr" style="grid-template-columns: 50px 1fr 140px 40px 30px;">
+      <span>Adres</span><span>Naam</span><span>Meting</span>
+      <span title="Input Register (FC04)">In</span><span></span>
     </div>
     <div id="regRows"></div>
     <button class="btn btn-sm" id="btnAddReg" style="margin-top:8px;">+ Register</button>
@@ -443,17 +443,80 @@ function renderRegRows(regs) {
   regs.forEach((r, i) => addRegRow(r, i));
 }
 
+const UNIT_GROUPS = {
+  'Temperatuur': [
+    { u: '°C', s: 0.1, sg: true, label: '°C (×0.1)' },
+    { u: '°C', s: 1, sg: true, label: '°C (×1)' },
+    { u: '°F', s: 0.1, sg: true, label: '°F (×0.1)' },
+    { u: 'K', s: 0.1, sg: true, label: 'K (×0.1)' },
+  ],
+  'Druk': [
+    { u: 'bar', s: 0.1, sg: true, label: 'bar (×0.1)' },
+    { u: 'bar', s: 0.01, sg: true, label: 'bar (×0.01)' },
+    { u: 'mbar', s: 1, sg: true, label: 'mbar (×1)' },
+    { u: 'kPa', s: 0.1, sg: true, label: 'kPa (×0.1)' },
+    { u: 'PSI', s: 0.1, sg: true, label: 'PSI (×0.1)' },
+  ],
+  'Elektrisch': [
+    { u: 'V', s: 0.1, sg: false, label: 'Volt (×0.1)' },
+    { u: 'V', s: 1, sg: false, label: 'Volt (×1)' },
+    { u: 'A', s: 0.1, sg: false, label: 'Ampère (×0.1)' },
+    { u: 'A', s: 0.01, sg: false, label: 'Ampère (×0.01)' },
+    { u: 'W', s: 1, sg: false, label: 'Watt (×1)' },
+    { u: 'kW', s: 0.1, sg: false, label: 'kW (×0.1)' },
+    { u: 'kWh', s: 0.1, sg: false, label: 'kWh (×0.1)' },
+    { u: 'kWh', s: 1, sg: false, label: 'kWh (×1)' },
+  ],
+  'Status': [
+    { u: '', s: 1, sg: false, label: 'Aan/Uit (0/1)' },
+    { u: '', s: 1, sg: false, label: 'Alarmcode' },
+  ],
+  'Teller': [
+    { u: 'h', s: 1, sg: false, label: 'Uren (×1)' },
+    { u: 'h', s: 0.1, sg: false, label: 'Uren (×0.1)' },
+    { u: '', s: 1, sg: false, label: 'Aantal (×1)' },
+  ],
+  'Overig': [
+    { u: '%', s: 0.1, sg: false, label: 'Procent (×0.1)' },
+    { u: '%', s: 1, sg: false, label: 'Procent (×1)' },
+    { u: 'Hz', s: 0.1, sg: false, label: 'Hertz (×0.1)' },
+    { u: 'RPM', s: 1, sg: false, label: 'RPM (×1)' },
+    { u: 'l/h', s: 0.1, sg: false, label: 'Liter/uur (×0.1)' },
+    { u: 'm³/h', s: 0.01, sg: false, label: 'm³/uur (×0.01)' },
+  ],
+};
+
+function buildUnitSelect(selectedUnit, selectedScale) {
+  let html = '<option value="">— Kies —</option>';
+  for (const [group, units] of Object.entries(UNIT_GROUPS)) {
+    html += `<optgroup label="${group}">`;
+    units.forEach((u, i) => {
+      const val = group + '|' + i;
+      const sel = (u.u === selectedUnit && u.s === selectedScale) ? 'selected' : '';
+      html += `<option value="${val}" ${sel}>${u.label}</option>`;
+    });
+    html += '</optgroup>';
+  }
+  return html;
+}
+
+function getUnitFromSelect(selectEl) {
+  const val = selectEl.value;
+  if (!val) return { u: '', s: 1, sg: false };
+  const [group, idx] = val.split('|');
+  return UNIT_GROUPS[group][parseInt(idx)];
+}
+
 function addRegRow(r, idx) {
   const row = document.createElement('div');
   row.className = 'reg-row';
+  row.style.gridTemplateColumns = '50px 1fr 140px 40px 30px';
   row.dataset.idx = idx !== undefined ? idx : regRows.children.length;
   row.innerHTML = `
     <input type="number" class="r-addr" value="${r?.address ?? ''}" placeholder="0" min="0" max="65535" aria-label="Register adres">
-    <input type="text" class="r-name" value="${esc(r?.name ?? '')}" placeholder="naam" aria-label="Register naam">
-    <input type="text" class="r-unit" value="${esc(r?.unit ?? '')}" placeholder="°C" aria-label="Eenheid">
-    <input type="number" class="r-scale" value="${r?.scale ?? 1}" step="0.01" aria-label="Schaalfactor">
-    <input type="checkbox" class="cb r-signed" ${r?.isSigned ? 'checked' : ''} aria-label="Signed">
-    <input type="checkbox" class="cb r-input" ${r?.isInput ? 'checked' : ''} aria-label="Input register">
+    <input type="text" class="r-name" value="${esc(r?.name ?? '')}" placeholder="Bijv. water_uit" aria-label="Register naam">
+    <select class="r-unit-sel" aria-label="Eenheid en schaal">${buildUnitSelect(r?.unit, r?.scale)}</select>
+    <input type="checkbox" class="cb r-input" ${r?.isInput ? 'checked' : ''} aria-label="Input register" title="Input (FC04)">
     <button class="del-btn" aria-label="Verwijder register">&times;</button>
   `;
   row.querySelector('.del-btn').addEventListener('click', () => row.remove());
@@ -466,12 +529,13 @@ function collectRegisters() {
     const addr = parseInt(row.querySelector('.r-addr').value);
     const name = row.querySelector('.r-name').value.trim();
     if (isNaN(addr) || !name) return;
+    const unit = getUnitFromSelect(row.querySelector('.r-unit-sel'));
     regs.push({
       address: addr,
       name: name.replace(/[^a-zA-Z0-9_]/g, '_').substring(0, 19),
-      unit: row.querySelector('.r-unit').value.trim().substring(0, 7),
-      scale: parseFloat(row.querySelector('.r-scale').value) || 1,
-      isSigned: row.querySelector('.r-signed').checked,
+      unit: unit.u,
+      scale: unit.s,
+      isSigned: unit.sg,
       isInput: row.querySelector('.r-input').checked,
     });
   });
