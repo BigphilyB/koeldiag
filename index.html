@@ -885,7 +885,7 @@ const CHAR_CONFIG          = '4e53ff04-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
                 filters: [{
                     services: [SERVICE_UUID]
                 }],
-                optionalServices: []  // No additional services needed
+                optionalServices: [SERVICE_UUID]
             });
 
             log(`Apparaat gevonden: ${bleDevice.name || 'onbekend'}`, 'success');
