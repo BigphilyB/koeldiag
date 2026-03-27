@@ -581,6 +581,39 @@
     <div class="register-grid" id="counterRegisters"></div>
   </section>
 
+  <!-- Configuratie -->
+  <section aria-label="Instellingen" style="margin-bottom: 24px;">
+    <div class="section-header">
+      <span class="section-icon" aria-hidden="true">🛠</span>
+      <h2 class="section-title">Configuratie</h2>
+    </div>
+    <div class="register-card">
+      <div class="register-label">
+        <span class="register-name">Modbus Baudrate</span>
+        <span class="register-addr">Systeeminstelling — opgeslagen in ESP32</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <label for="baudRateSelect" class="sr-only">Baudrate selecteren</label>
+        <select id="baudRateSelect"
+                style="background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border-subtle); border-radius: var(--radius-sm); padding: 6px 8px; font-family: var(--font-mono); font-size: 0.8rem; cursor: pointer;">
+          <option value="1200">1200</option>
+          <option value="2400">2400</option>
+          <option value="4800">4800</option>
+          <option value="9600" selected>9600</option>
+          <option value="19200">19200</option>
+          <option value="38400">38400</option>
+          <option value="57600">57600</option>
+          <option value="115200">115200</option>
+        </select>
+        <button id="btnSetBaud"
+                style="padding: 6px 14px; border: 1px solid var(--accent-blue-dim); border-radius: var(--radius-sm); background: rgba(59,130,246,0.12); color: var(--accent-blue); font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; cursor: pointer; white-space: nowrap;"
+                aria-label="Baudrate toepassen op ESP32">
+          Toepassen
+        </button>
+      </div>
+    </div>
+  </section>
+
   <!-- Log -->
   <section class="log-section" aria-label="Eventlog">
     <div class="section-header">
@@ -622,12 +655,12 @@
     const SERVICE_UUID         = '4e53ff01-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
     const CHAR_REGISTER_DATA   = '4e53ff02-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
     const CHAR_STATUS          = '4e53ff03-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-    const CHAR_CONFIG          = '4e53ff04-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
-
+const CHAR_CONFIG          = '4e53ff04-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
+    const CHAR_CONFIG_WRITE    = '4e53ff05-1b8a-4f3c-9a5b-7d6e8c2f0a1b';
     // ─── Human-readable labels (NL) ───────────────────────────────────
     const REGISTER_LABELS = {
         water_in:       'Water in',
-        water_uit:       'Water uit.',
+        water_uit:       'Verdampertemp.',
         setpoint:        'Setpoint',
         defrost_temp:    'Ontdooitemp.',
         superheat:       'Oververhitting',
@@ -651,6 +684,8 @@
 
     // ─── DOM References ───────────────────────────────────────────────
     const $ = (id) => document.getElementById(id);
+    const baudRateSelect  = $('baudRateSelect');
+    const btnSetBaud      = $('btnSetBaud');
     const statusBadge     = $('statusBadge');
     const statusText      = $('statusText');
     const btnConnect      = $('btnConnect');
@@ -873,6 +908,9 @@
                 const configStr = new TextDecoder().decode(configValue);
                 registerConfig = JSON.parse(configStr);
                 log(`Config ontvangen: ${registerConfig.regs?.length || 0} registers, slave ${registerConfig.slave}`, 'info');
+                if (registerConfig.baud) {
+                    baudRateSelect.value = String(registerConfig.baud);
+                }
             } catch (e) {
                 log('Config characteristic niet gelezen (optioneel)', 'warn');
             }
@@ -969,12 +1007,37 @@
         }
     }
 
+    // ─── Baud Rate Update ─────────────────────────────────────────────
+    async function updateBaudRate() {
+        if (!bleServer || !isConnected) {
+            log('Eerst verbinden met ESP32', 'warn');
+            return;
+        }
+
+        const newBaud = parseInt(baudRateSelect.value, 10);
+        log(`Baudrate wijzigen naar ${newBaud}...`, 'info');
+        btnSetBaud.disabled = true;
+
+        try {
+            const service = await bleServer.getPrimaryService(SERVICE_UUID);
+            const configWriteChar = await service.getCharacteristic(CHAR_CONFIG_WRITE);
+            const payload = new TextEncoder().encode(JSON.stringify({ baud: newBaud }));
+            await configWriteChar.writeValueWithResponse(payload);
+            log(`Baudrate ingesteld op ${newBaud} baud`, 'success');
+        } catch (error) {
+            log(`Fout bij instellen baudrate: ${error.message}`, 'error');
+        } finally {
+            btnSetBaud.disabled = false;
+        }
+    }
+
     // ─── Init ─────────────────────────────────────────────────────────
     function init() {
         const supported = checkBrowserSupport();
 
         if (supported) {
             btnConnect.addEventListener('click', connect);
+            btnSetBaud.addEventListener('click', updateBaudRate);
         }
 
         buildRegisterCards();
